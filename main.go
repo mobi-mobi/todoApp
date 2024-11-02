@@ -3,18 +3,16 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
+	"strings"
 )
 
-type todoElement struct {
-	decor string
-	Text  string
-}
-
-var todoList []todoElement
+var todoList []string
 var userInputMode int
 var run bool = true
+var fileurl string = "d:/SKOLA/GOVECI/todoApp/todoFile.txt"
 
 func addMode() {
 	reader := bufio.NewReader(os.Stdin)
@@ -26,7 +24,8 @@ func addMode() {
 }
 
 func addToDoElement(text string) {
-	todoList = append(todoList, todoElement{decor: "* ", Text: text})
+	todoList = append(todoList, text)
+
 }
 
 func removeMode() {
@@ -40,10 +39,10 @@ func removeMode() {
 func printDisplay() {
 	fmt.Println("TODO LIST")
 	fmt.Println("----------")
-	for _, val := range todoList {
-		fmt.Println(val.decor, val.Text)
+	for index, val := range todoList {
+		fmt.Printf("\n%d %s", index+1, val)
 	}
-	fmt.Println("\n1-ADD   2-DELETE   3-EXIT")
+	fmt.Println("\n1-ADD   2-DELETE   3-MARK AS DONE   4-EXIT")
 }
 
 func handleModeInput() {
@@ -57,6 +56,43 @@ func clearDisplay() {
 	cmd.Run()
 }
 
+func openFile(url string) *os.File {
+	file, err := os.OpenFile(url, os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		fmt.Printf("Error opening file: %v\n", err)
+	}
+
+	return file
+}
+
+func readFile(f *os.File) {
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		todoText := scanner.Text()
+		todoList = append(todoList, todoText+"\n")
+	}
+}
+
+func rewriteFile() {
+	todoString := strings.Join(todoList, "")
+	todoBytes := []byte(todoString)
+	err := os.WriteFile(fileurl, todoBytes, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func markAsDone() {
+	input := 0
+	fmt.Print("Enter the order of the ToDo to mark it as done: ")
+	fmt.Scanln(&input)
+	todoList[input-1] = "TASK DONE!\n"
+	/*
+		todoList[input-1] = strings.Trim(todoList[input-1], "\n")
+		todoList[input-1] += " DONE!\n"
+	*/
+}
+
 func Modes() {
 
 	switch userInputMode {
@@ -67,19 +103,26 @@ func Modes() {
 		removeMode()
 		clearDisplay()
 	case 3:
+		markAsDone()
+		clearDisplay()
+	case 4:
 		run = false
 	}
 
 }
 
 func main() {
+	newFile := openFile(fileurl)
+	readFile(newFile)
 	for {
 		printDisplay()
 		handleModeInput()
 		Modes()
 		if !run {
+			defer newFile.Close()
 			break
 		}
+		rewriteFile()
 	}
 	clearDisplay()
 
